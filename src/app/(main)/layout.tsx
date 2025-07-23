@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, Loader2, LogOut, Thermometer, User } from 'lucide-react';
+import { LayoutDashboard, Loader2, LogOut, Thermometer, LineChart } from 'lucide-react';
 import Link from 'next/link';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
@@ -54,6 +54,12 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             <Link href="/dashboard">
               <LayoutDashboard className="h-5 w-5" />
               Painel
+            </Link>
+          </Button>
+           <Button variant="ghost" className="justify-start gap-2" asChild>
+            <Link href="/history">
+              <LineChart className="h-5 w-5" />
+              Histórico
             </Link>
           </Button>
         </nav>
@@ -114,6 +120,12 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                         <Link href="/dashboard" className='flex items-center w-full'>
                             <LayoutDashboard className="mr-2 h-4 w-4" />
                             <span>Painel</span>
+                        </Link>
+                    </DropdownMenuItem>
+                     <DropdownMenuItem>
+                        <Link href="/history" className='flex items-center w-full'>
+                            <LineChart className="mr-2 h-4 w-4" />
+                            <span>Histórico</span>
                         </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />

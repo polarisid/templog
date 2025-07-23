@@ -14,10 +14,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Thermometer, Droplets, AlertCircle, Badge } from 'lucide-react';
+import { Loader2, Thermometer, Droplets, AlertCircle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 
 interface Sector {
@@ -37,6 +38,8 @@ interface Record {
   timestamp: Timestamp;
   turno: 'Manhã' | 'Tarde' | 'Noite';
   observation: string;
+  is_temp_ok: boolean;
+  is_humidity_ok: boolean;
 }
 
 const formSchema = z.object({
@@ -300,8 +303,16 @@ export default function RecordPage() {
                           {dailyRecords.map(record => (
                               <TableRow key={record.id}>
                                   <TableCell>{record.turno}</TableCell>
-                                  <TableCell>{record.temperature}°C</TableCell>
-                                  <TableCell>{record.humidity}%</TableCell>
+                                  <TableCell>
+                                     <Badge variant={record.is_temp_ok ? 'secondary' : 'destructive'}>
+                                        {record.temperature}°C
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant={record.is_humidity_ok ? 'secondary' : 'destructive'}>
+                                        {record.humidity}%
+                                    </Badge>
+                                  </TableCell>
                               </TableRow>
                           ))}
                       </TableBody>

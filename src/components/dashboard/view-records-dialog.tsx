@@ -1,14 +1,14 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot, Timestamp, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Sector } from '@/app/(main)/dashboard/page';
+import { type Sector } from '@/app/(main)/dashboard/page';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, FileDown, Loader2 } from 'lucide-react';
+import { Calendar as CalendarIcon, FileDown } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
@@ -39,41 +39,42 @@ export function ViewRecordsDialog({ isOpen, setIsOpen, sector }: ViewRecordsDial
   const [date, setDate] = useState<Date | undefined>(new Date());
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !date) {
+        setRecords([]);
+        setLoading(!date);
+        return;
+    }
     setLoading(true);
 
-    let startOfDay: Date;
-    let endOfDay: Date;
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
 
-    if (date) {
-      startOfDay = new Date(date.setHours(0, 0, 0, 0));
-      endOfDay = new Date(date.setHours(23, 59, 59, 999));
-    } else {
-      setRecords([]);
-      setLoading(false);
-      return;
-    }
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
 
     const q = query(
       collection(db, 'records'),
       where('sector_id', '==', sector.id),
       where('timestamp', '>=', startOfDay),
       where('timestamp', '<=', endOfDay),
-      orderBy('timestamp', 'desc')
+      orderBy('timestamp', 'asc')
     );
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const recordsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Record));
       setRecords(recordsData);
       setLoading(false);
+    }, (error) => {
+        console.error("Error fetching records: ", error);
+        setLoading(false);
     });
 
     return () => unsubscribe();
   }, [sector.id, date, isOpen]);
-  
+
   const exportToCsv = () => {
     const headers = ['Horário', 'Turno', 'Temperatura (°C)', 'Temp OK', 'Umidade (%)', 'Umidade OK', 'Observações'];
-    const rows = records.map(r => [
+    const rows = records.sort((a,b) => a.timestamp.toDate().getTime() - b.timestamp.toDate().getTime()).map(r => [
       format(r.timestamp.toDate(), 'yyyy-MM-dd HH:mm:ss'),
       r.turno,
       r.temperature,
@@ -102,13 +103,13 @@ export function ViewRecordsDialog({ isOpen, setIsOpen, sector }: ViewRecordsDial
             Visualizando registros para {format(date || new Date(), 'PPP', { locale: ptBR })}. Temp Ideal: {sector.temp_min}°C - {sector.temp_max}°C, Umidade: {sector.humidity_min}% - {sector.humidity_max}%.
           </DialogDescription>
         </DialogHeader>
-        <div className="flex items-center justify-between py-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 py-4">
           <Popover>
             <PopoverTrigger asChild>
               <Button
                 variant={"outline"}
                 className={cn(
-                  "w-[240px] justify-start text-left font-normal",
+                  "w-full sm:w-[240px] justify-start text-left font-normal",
                   !date && "text-muted-foreground"
                 )}
               >
@@ -126,56 +127,61 @@ export function ViewRecordsDialog({ isOpen, setIsOpen, sector }: ViewRecordsDial
               />
             </PopoverContent>
           </Popover>
-          <Button onClick={exportToCsv} disabled={records.length === 0}>
+          <Button onClick={exportToCsv} disabled={records.length === 0} className="w-full sm:w-auto">
             <FileDown className="mr-2 h-4 w-4" />
             Exportar CSV
           </Button>
         </div>
-        <div className="max-h-[60vh] overflow-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Horário</TableHead>
-                <TableHead>Turno</TableHead>
-                <TableHead>Temperatura</TableHead>
-                <TableHead>Umidade</TableHead>
-                <TableHead>Observações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell colSpan={5}><Skeleton className="h-5 w-full" /></TableCell>
-                  </TableRow>
-                ))
-              ) : records.length > 0 ? (
-                records.map(record => (
-                  <TableRow key={record.id}>
-                    <TableCell>{format(record.timestamp.toDate(), 'HH:mm')}</TableCell>
-                    <TableCell>{record.turno}</TableCell>
-                    <TableCell>
-                      <Badge variant={record.is_temp_ok ? 'secondary' : 'destructive'}>
-                        {record.temperature}°C
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={record.is_humidity_ok ? 'secondary' : 'destructive'}>
-                        {record.humidity}%
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="max-w-xs truncate">{record.observation || '-'}</TableCell>
-                  </TableRow>
-                ))
-              ) : (
+
+        <div className="max-h-[50vh] overflow-auto">
+            <Table>
+                <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
-                    Nenhum registro encontrado para esta data.
-                  </TableCell>
+                    <TableHead>Horário</TableHead>
+                    <TableHead>Turno</TableHead>
+                    <TableHead>Temperatura</TableHead>
+                    <TableHead>Umidade</TableHead>
+                    <TableHead>Observações</TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                </TableHeader>
+                <TableBody>
+                {loading ? (
+                    Array.from({ length: 3 }).map((_, i) => (
+                    <TableRow key={i}>
+                        <TableCell><Skeleton className="h-5 w-full" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-full" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-full" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-full" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-full" /></TableCell>
+                    </TableRow>
+                    ))
+                ) : records.length > 0 ? (
+                    records.map(record => (
+                    <TableRow key={record.id}>
+                        <TableCell>{format(record.timestamp.toDate(), 'HH:mm')}</TableCell>
+                        <TableCell>{record.turno}</TableCell>
+                        <TableCell>
+                        <Badge variant={record.is_temp_ok ? 'secondary' : 'destructive'}>
+                            {record.temperature}°C
+                        </Badge>
+                        </TableCell>
+                        <TableCell>
+                        <Badge variant={record.is_humidity_ok ? 'secondary' : 'destructive'}>
+                            {record.humidity}%
+                        </Badge>
+                        </TableCell>
+                        <TableCell className="max-w-xs truncate">{record.observation || '-'}</TableCell>
+                    </TableRow>
+                    ))
+                ) : (
+                    <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center">
+                        Nenhum registro encontrado para esta data.
+                    </TableCell>
+                    </TableRow>
+                )}
+                </TableBody>
+            </Table>
         </div>
       </DialogContent>
     </Dialog>
